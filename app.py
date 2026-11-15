@@ -159,8 +159,13 @@ with tab_search:
         try:
             image_rows = client.table("problem_images").select("file_path").eq("problem_id", chosen_id).execute().data or []
             for row in image_rows:
-                image_url = client.storage.from_("problem-images").get_public_url(row["file_path"])
-                st.image(image_url, use_container_width=True)
+                file_path = row["file_path"]
+                file_url = client.storage.from_("problem-images").get_public_url(file_path)
+                file_name = file_path.rsplit("/", 1)[-1]
+                if file_name.lower().endswith(".pdf"):
+                    st.link_button(f"添付PDFを開く：{file_name}", file_url)
+                else:
+                    st.image(file_url, use_container_width=True)
         except Exception:
             pass
     else:
@@ -201,7 +206,7 @@ with tab_edit:
                             values[key] = st.text_input(label, value=str(base.get(key) or ""))
                 for key, label in FIELDS[8:]:
                     values[key] = st.text_area(label, value=str(base.get(key) or ""), height=100 if key in ("question_text", "answer_text") else 70)
-                uploaded = st.file_uploader("添付画像（PNG・GIF）", type=["png", "gif"], accept_multiple_files=True)
+                uploaded = st.file_uploader("添付ファイル（PNG・GIF・PDF）", type=["png", "gif", "pdf"], accept_multiple_files=True)
                 save = st.form_submit_button("保存")
             if save:
                 if not values["university"].strip() or not values["subject"].strip():
