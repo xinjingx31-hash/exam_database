@@ -66,6 +66,44 @@ with st.sidebar:
 
 is_editor = bool(st.session_state.access_token)
 
+if not is_editor:
+    st.subheader("招待を受け取った方：パスワードを設定")
+    st.write("招待メールに記載された確認コードを入力し、アプリ用パスワードを設定してください。")
+    with st.form("invite_setup_form"):
+        invite_email = st.text_input("招待されたメールアドレス", key="invite_email")
+        invite_code = st.text_input("招待メールの確認コード", key="invite_code", max_chars=8)
+        new_password = st.text_input("新しいパスワード（8文字以上）", type="password", key="new_password")
+        password_again = st.text_input("新しいパスワード（確認）", type="password", key="password_again")
+        setup_password = st.form_submit_button("確認してパスワードを設定")
+    if setup_password:
+        if not invite_email.strip() or not invite_code.strip():
+            st.error("メールアドレスと確認コードを入力してください。")
+        elif len(new_password) < 8:
+            st.error("パスワードは8文字以上にしてください。")
+        elif new_password != password_again:
+            st.error("2つのパスワードが一致しません。")
+        else:
+            try:
+                verified = client.auth.verify_otp({
+                    "email": invite_email.strip(),
+                    "token": invite_code.strip(),
+                    "type": "invite",
+                })
+                if not verified.session:
+                    raise ValueError("確認コードを検証できませんでした。")
+                client.auth.set_session(
+                    verified.session.access_token,
+                    verified.session.refresh_token,
+                )
+                updated = client.auth.update_user({"password": new_password})
+                st.session_state.access_token = updated.session.access_token if updated.session else verified.session.access_token
+                st.session_state.refresh_token = updated.session.refresh_token if updated.session else verified.session.refresh_token
+                st.session_state.editor_email = invite_email.strip()
+                st.success("パスワードを設定しました。ログイン状態になりました。")
+                st.rerun()
+            except Exception as error:
+                st.error(f"設定できませんでした。確認コードの期限切れや入力間違いがないか確認してください。詳細: {error}")
+
 try:
     result = client.table("problems").select("*").order("id", desc=True).execute()
     problems = result.data or []
