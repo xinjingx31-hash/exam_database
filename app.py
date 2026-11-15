@@ -228,7 +228,9 @@ with tab_edit:
                             client.table("problems").update(payload).eq("id", base["id"]).execute()
                             saved_id = base["id"]
                         for file in uploaded or []:
-                            image_path = f"{saved_id}/{uuid.uuid4().hex}_{file.name}"
+                        # 元のファイル名には日本語や空白が含まれることがあるため、保存先では使わない。
+                        extension = file.name.rsplit(".", 1)[-1].lower()
+                        image_path = f"{saved_id}/{uuid.uuid4().hex}.{extension}"
                             client.storage.from_("problem-images").upload(image_path, file.getvalue(), {"upsert": "true", "content-type": file.type})
                             client.table("problem_images").insert({"problem_id": saved_id, "file_path": image_path}).execute()
                         st.success("保存しました。")
